@@ -1,9 +1,9 @@
 ---
-- name: Brave Browser Installation
+- name: Install Brave Browser
   hosts: all
   become: true
   tasks:
-    - name: Erforderliche Pakete installieren
+    - name: Install required packages
       ansible.builtin.apt:
         name:
           - apt-transport-https
@@ -11,19 +11,19 @@
         state: present
         update_cache: true
 
-    - name: Brave GPG-Schlüssel herunterladen
+    - name: Download Brave signing-key
       ansible.builtin.get_url:
         url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
         dest: /tmp/brave-browser-archive-keyring.gpg
         mode: '0644'
 
-    - name: GPG-Schlüssel in ASCII-Format konvertieren
+    - name: Convert signing-key into ascii format
       ansible.builtin.command:
         cmd: gpg --dearmor --yes -o /tmp/brave-browser-archive-keyring-dearmored.gpg /tmp/brave-browser-archive-keyring.gpg
       args:
         creates: /tmp/brave-browser-archive-keyring-dearmored.gpg
 
-    - name: Brave Repository mit deb822_repository konfigurieren
+    - name: Add Brave repository
       ansible.builtin.deb822_repository:
         name: brave-browser
         types: [deb]
@@ -34,16 +34,16 @@
         state: present
         enabled: true
 
-    - name: APT-Cache aktualisieren
+    - name: Update apt-cache
       ansible.builtin.apt:
         update_cache: true
 
-    - name: Brave Browser installieren
+    - name: Install Brave Browser
       ansible.builtin.apt:
         name: brave-browser
         state: present
 
-    - name: Temporäre GPG-Schlüssel-Dateien aufräumen
+    - name: Clean up temporary files
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
