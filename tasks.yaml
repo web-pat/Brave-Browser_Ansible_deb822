@@ -6,22 +6,43 @@
     - name: Install required packages
       ansible.builtin.apt:
         name:
-          - apt-transport-https
-          - curl
+          - gnupg
+          - python3-debian
         state: present
         update_cache: true
+
+    - name: Ensure APT keyring directory exists
+      ansible.builtin.file:
+        path: /usr/share/keyrings
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
 
     - name: Download Brave signing-key
       ansible.builtin.get_url:
         url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
         dest: /tmp/brave-browser-archive-keyring.gpg
         mode: '0644'
+      register: brave_key_download
 
-    - name: Convert signing-key into ascii format
+    - name: Check whether the Brave keyring exists
+      ansible.builtin.stat:
+        path: /usr/share/keyrings/brave-browser-archive-keyring-dearmored.gpg
+      register: brave_keyring
+
+    - name: Dearmor Brave signing key
       ansible.builtin.command:
-        cmd: gpg --dearmor --yes -o /tmp/brave-browser-archive-keyring-dearmored.gpg /tmp/brave-browser-archive-keyring.gpg
-      args:
-        creates: /tmp/brave-browser-archive-keyring-dearmored.gpg
+        cmd: gpg --dearmor --yes -o /usr/share/keyrings/brave-browser-archive-keyring-dearmored.gpg /tmp/brave-browser-archive-keyring.gpg
+      when: brave_key_download.changed or not brave_keyring.stat.exists
+
+    - name: Set Brave keyring permissions
+      ansible.builtin.file:
+        path: /usr/share/keyrings/brave-browser-archive-keyring-dearmored.gpg
+        state: file
+        owner: root
+        group: root
+        mode: '0644'
 
     - name: Add Brave repository
       ansible.builtin.deb822_repository:
@@ -30,7 +51,7 @@
         uris: https://brave-browser-apt-release.s3.brave.com/
         suites: stable
         components: [main]
-        signed_by: /tmp/brave-browser-archive-keyring-dearmored.gpg
+        signed_by: /usr/share/keyrings/brave-browser-archive-keyring-dearmored.gpg
         state: present
         enabled: true
 
@@ -43,10 +64,7 @@
         name: brave-browser
         state: present
 
-    - name: Clean up temporary files
+    - name: Clean up downloaded signing-key
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: /tmp/brave-browser-archive-keyring.gpg
         state: absent
-      loop:
-        - /tmp/brave-browser-archive-keyring.gpg
-        - /tmp/brave-browser-archive-keyring-dearmored.gpg

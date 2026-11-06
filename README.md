@@ -1,22 +1,20 @@
 # Brave-Browser_Ansible_deb822
 
-Ansible task installing Brave Browser using the new *ansible.builtin.deb822_repository* module as a replacement for deprecated methods handling signing keys.
+An Ansible playbook that installs Brave Browser from Brave's APT repository using the `ansible.builtin.deb822_repository` module.
 
 ## Why this task / playbook?
-Most playbooks I found in the net used deprecated methods handling repository signing-keys. This task uses the new aforementioned Ansible module and best practices.
+The playbook uses a DEB822 source and scopes repository verification to Brave's signing key. It requires `ansible-core` 2.15 or newer, where `ansible.builtin.deb822_repository` was introduced.
 
 ## What does it do?
 ### Security aspects:
-The GPG key is directly referenced in the signed_by parameter of the repository configuration
-This corresponds to the modern DEB822 format, which embeds keys in the source file
-No deprecated methods like apt-key or separate key storage in /etc/apt/trusted.gpg.d/
+The Brave signing key is stored persistently at `/usr/share/keyrings/brave-browser-archive-keyring-dearmored.gpg` and referenced by path in the repository's `Signed-By` field. It is not embedded in the source file and is not installed in the global trusted keyring.
 
 ### Process:
-* Installation of required packages (apt-transport-https, curl)
+* Installation of `gnupg` and `python3-debian`, required by the playbook
 * Download of the official Brave GPG key
-* Conversion to the required format (dearmored)
+* Conversion to a dearmored keyring at the persistent path above
 * Configuration of the repository with deb822_repository
 * Installation of Brave Browser
-* Cleanup of temporary key files
+* Cleanup of the temporary downloaded key (the persistent keyring is retained for future APT updates)
 
-The playbook is idempotent and can be executed multiple times without causing unwanted side effects.
+The playbook is designed to be idempotent. If the downloaded key changes, the persistent keyring is regenerated so subsequent APT updates continue to use the current signing key.
